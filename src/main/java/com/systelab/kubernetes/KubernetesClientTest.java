@@ -2,6 +2,8 @@ package com.systelab.kubernetes;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.fabric8.kubernetes.client.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,14 +17,37 @@ public class KubernetesClientTest {
     private final KubernetesClient client;
 
     KubernetesClientTest() {
-        String master = "https://192.168.99.100:8443/";
-        Config config = new ConfigBuilder().withMasterUrl(master).build();
+    //    String master = "https://192.168.99.100:8443/";
+        String master = "https://kubernetes/";
+        Config config = new ConfigBuilder().withNamespace("default").withMasterUrl(master).build();
         client = new DefaultKubernetesClient(config);
+    }
+
+    public void printReplicaSets() {
+        try {
+            getReplicaSets("default").forEach(rs -> printReplicaSet(rs));
+
+        } catch (KubernetesClientException e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+    private void printReplicaSet(ReplicaSet replicaSet) {
+        System.out.println("Replica Set Details");
+        System.out.println("-------------------------------------");
+
+        System.out.println("Name:\t\t\t" + replicaSet.getMetadata().getName());
+        System.out.println("Namespace:\t\t" + replicaSet.getMetadata().getNamespace());
+        System.out.println("Labels:\t\t\t" + replicaSet.getMetadata().getLabels().values().stream().collect(Collectors.joining(", ")));
+        System.out.println("Annotations:\t" + replicaSet.getMetadata().getAnnotations().values().stream().collect(Collectors.joining(", ")));
+        System.out.println("Creation Time:\t" + replicaSet.getMetadata().getCreationTimestamp());
+        System.out.println("Selector:\t" + replicaSet.getSpec().getSelector().getMatchLabels().values().stream().collect(Collectors.joining(", ")));
+        System.out.println("");
     }
 
     public void printPods() {
         try {
-            getPods("default").forEach((p) -> printPod(p));
+            getPods("default").forEach(p -> printPod(p));
 
         } catch (KubernetesClientException e) {
             logger.error(e.getMessage(), e);
@@ -43,7 +68,25 @@ public class KubernetesClientTest {
 
         printContainers(pod.getSpec().getContainers());
         System.out.println("");
+    }
 
+    private void printService(Service service) {
+        System.out.println("Service Details");
+        System.out.println("-------------------------------------");
+
+        System.out.println("Name:\t\t\t" + service.getMetadata().getName());
+        System.out.println("Namespace:\t\t" + service.getMetadata().getNamespace());
+        System.out.println("Labels:\t\t\t" + service.getMetadata().getLabels().values().stream().collect(Collectors.joining(", ")));
+
+        System.out.println("Creation Time:\t" + service.getMetadata().getCreationTimestamp());
+        if (service.getSpec().getSelector() != null) {
+            System.out.println("Selector:\t\t" + service.getSpec().getSelector().values().stream().collect(Collectors.joining(", ")));
+        }
+
+        System.out.println("Type:\t\t\t" + service.getSpec().getType());
+        System.out.println("Session Aff:\t" + service.getSpec().getSessionAffinity());
+
+        System.out.println("");
     }
 
     private void printContainers(List<Container> containers) {
@@ -60,15 +103,30 @@ public class KubernetesClientTest {
         }
         if (container.getPorts().size() > 0) {
             System.out.println("\t\tPorts:");
-            container.getPorts().forEach((p) -> System.out.println("\t\t\t\t\t" + p.getContainerPort()+":"+p.getHostPort()));
+            container.getPorts().forEach((p) -> System.out.println("\t\t\t\t\t" + p.getContainerPort() + ":" + p.getHostPort()));
         }
     }
 
+    public void printServices() {
+        try {
+            getServices("default").forEach(s -> printService(s));
+
+        } catch (KubernetesClientException e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+    private List<Service> getServices(String nameSpace) {
+        return client.services().inNamespace(nameSpace).list().getItems();
+    }
 
     private List<Pod> getPods(String nameSpace) {
         return client.pods().inNamespace(nameSpace).list().getItems();
     }
 
+    private List<ReplicaSet> getReplicaSets(String nameSpace) {
+        return client.apps().replicaSets().inNamespace(nameSpace).list().getItems();
+    }
 
     public void close() {
         client.close();
@@ -76,7 +134,9 @@ public class KubernetesClientTest {
 
     public static void main(String... args) {
         KubernetesClientTest test = new KubernetesClientTest();
-        test.printPods();
+        // test.printPods();
+        // test.printReplicaSets();
+        test.printServices();
         test.close();
     }
 }
