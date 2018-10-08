@@ -1,22 +1,22 @@
 package com.systelab.kubernetes;
 
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
+import com.systelab.kubernetes.util.KubernetesDeployment;
+import com.systelab.kubernetes.util.KubernetesPod;
+import com.systelab.kubernetes.util.KubernetesReplicaSet;
+import com.systelab.kubernetes.util.KubernetesService;
+import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.client.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class KubernetesClientTest implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(KubernetesClientTest.class);
     private final KubernetesClient client;
+    private final String namespace;
 
-    KubernetesClientTest() {
+    KubernetesClientTest(String namespace) {
+        this.namespace = namespace;
         // In local heads to https://192.168.99.100:8443/ and inside Kubernetes heads to https://kubernetes/
         Config config = new ConfigBuilder().build();
         client = new DefaultKubernetesClient(config);
@@ -24,9 +24,23 @@ public class KubernetesClientTest implements Runnable {
 
     @Override
     public void run() {
+
+        client.events().inNamespace(namespace).watch(new Watcher<Event>() {
+            @Override
+            public void eventReceived(Action action, Event resource) {
+                System.out.println("event " + action.name() + " " + resource.toString());
+            }
+
+            @Override
+            public void onClose(KubernetesClientException cause) {
+                System.out.println("Watcher close due to " + cause);
+            }
+
+        });
+
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                this.printPods();
+               this.scaleDeployment("kubernetes-client-deploy");
                 Thread.sleep(10000);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
@@ -37,7 +51,7 @@ public class KubernetesClientTest implements Runnable {
 
     public void printPods() {
         try {
-            getPods("default").forEach(p -> printPod(p));
+            KubernetesPod.getPods(client, namespace).forEach(p -> KubernetesPod.printPod(p));
         } catch (KubernetesClientException e) {
             logger.error(e.getMessage(), e);
         }
@@ -45,7 +59,7 @@ public class KubernetesClientTest implements Runnable {
 
     public void printReplicaSets() {
         try {
-            getReplicaSets("default").forEach(rs -> printReplicaSet(rs));
+            KubernetesReplicaSet.getReplicaSets(client, namespace).forEach(rs -> KubernetesReplicaSet.printReplicaSet(rs));
         } catch (KubernetesClientException e) {
             logger.error(e.getMessage(), e);
         }
@@ -53,7 +67,16 @@ public class KubernetesClientTest implements Runnable {
 
     public void printServices() {
         try {
-            getServices("default").forEach(s -> printService(s));
+            KubernetesService.getServices(client, namespace).forEach(s -> KubernetesService.printService(s));
+
+        } catch (KubernetesClientException e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+    public void scaleDeployment(String name) {
+        try {
+            KubernetesDeployment.scaleDeployment(client, namespace, name, KubernetesDeployment.getNumberOfPods(client, namespace, name) + 1);
         } catch (KubernetesClientException e) {
             logger.error(e.getMessage(), e);
         }
@@ -63,85 +86,8 @@ public class KubernetesClientTest implements Runnable {
         client.close();
     }
 
-    private void printReplicaSet(ReplicaSet replicaSet) {
-        System.out.println("Replica Set Details");
-        System.out.println("-------------------------------------");
-
-        System.out.println("Name:\t\t\t" + replicaSet.getMetadata().getName());
-        System.out.println("Namespace:\t\t" + replicaSet.getMetadata().getNamespace());
-        System.out.println("Labels:\t\t\t" + replicaSet.getMetadata().getLabels().values().stream().collect(Collectors.joining(", ")));
-        System.out.println("Annotations:\t" + replicaSet.getMetadata().getAnnotations().values().stream().collect(Collectors.joining(", ")));
-        System.out.println("Creation Time:\t" + replicaSet.getMetadata().getCreationTimestamp());
-        System.out.println("Selector:\t" + replicaSet.getSpec().getSelector().getMatchLabels().values().stream().collect(Collectors.joining(", ")));
-        System.out.println("");
-    }
-
-    private void printPod(Pod pod) {
-        System.out.println("Pod Details");
-        System.out.println("-------------------------------------");
-
-        System.out.println("Name:\t\t\t" + pod.getMetadata().getName());
-        System.out.println("Namespace:\t\t" + pod.getMetadata().getNamespace());
-        System.out.println("Labels:\t\t\t" + pod.getMetadata().getLabels().values().stream().collect(Collectors.joining(", ")));
-
-        System.out.println("Creation Time:\t" + pod.getMetadata().getCreationTimestamp());
-        System.out.println("Status:\t\t\t" + pod.getStatus().getPhase());
-        System.out.println("QoS Class:\t\t" + pod.getStatus().getQosClass());
-
-        printContainers(pod.getSpec().getContainers());
-        System.out.println("");
-    }
-
-    private void printService(Service service) {
-        System.out.println("Service Details");
-        System.out.println("-------------------------------------");
-
-        System.out.println("Name:\t\t\t" + service.getMetadata().getName());
-        System.out.println("Namespace:\t\t" + service.getMetadata().getNamespace());
-        System.out.println("Labels:\t\t\t" + service.getMetadata().getLabels().values().stream().collect(Collectors.joining(", ")));
-
-        System.out.println("Creation Time:\t" + service.getMetadata().getCreationTimestamp());
-        if (service.getSpec().getSelector() != null) {
-            System.out.println("Selector:\t\t" + service.getSpec().getSelector().values().stream().collect(Collectors.joining(", ")));
-        }
-
-        System.out.println("Type:\t\t\t" + service.getSpec().getType());
-        System.out.println("Session Aff:\t" + service.getSpec().getSessionAffinity());
-
-        System.out.println("");
-    }
-
-    private void printContainers(List<Container> containers) {
-        System.out.println("Containers:");
-        containers.forEach(c -> printContainer(c));
-    }
-
-    private void printContainer(Container container) {
-        System.out.println("\t" + container.getName());
-        System.out.println("\t\tImage:\t\t" + container.getImage());
-        if (container.getEnv().size() > 0) {
-            System.out.println("\t\tEnvironment:");
-            container.getEnv().forEach((e) -> System.out.println("\t\t\t\t\t" + e.getName() + ": " + e.getValue()));
-        }
-        if (container.getPorts().size() > 0) {
-            System.out.println("\t\tPorts:");
-            container.getPorts().forEach((p) -> System.out.println("\t\t\t\t\t" + p.getContainerPort() + ":" + p.getHostPort()));
-        }
-    }
-
-    private List<Service> getServices(String nameSpace) {
-        return client.services().inNamespace(nameSpace).list().getItems();
-    }
-
-    private List<Pod> getPods(String nameSpace) {
-        return client.pods().inNamespace(nameSpace).list().getItems();
-    }
-
-    private List<ReplicaSet> getReplicaSets(String nameSpace) {
-        return client.apps().replicaSets().inNamespace(nameSpace).list().getItems();
-    }
 
     public static void main(String... args) {
-        new Thread(new KubernetesClientTest()).start();
+        new Thread(new KubernetesClientTest("default")).start();
     }
 }
