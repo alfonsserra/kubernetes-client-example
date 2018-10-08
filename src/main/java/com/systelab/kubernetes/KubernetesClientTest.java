@@ -11,27 +11,56 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class KubernetesClientTest {
+public class KubernetesClientTest implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(KubernetesClientTest.class);
     private final KubernetesClient client;
 
     KubernetesClientTest() {
-    //    String master = "https://192.168.99.100:8443/";
-    //    String master = "https://kubernetes/";
-        //    Config config = new ConfigBuilder().withNamespace("default").withMasterUrl(master).build();
-
+        // In local heads to https://192.168.99.100:8443/ and inside Kubernetes heads to https://kubernetes/
         Config config = new ConfigBuilder().build();
         client = new DefaultKubernetesClient(config);
+    }
+
+    @Override
+    public void run() {
+        while (!Thread.currentThread().isInterrupted()) {
+            try {
+                this.printPods();
+                Thread.sleep(10000);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        this.close();
+    }
+
+    public void printPods() {
+        try {
+            getPods("default").forEach(p -> printPod(p));
+        } catch (KubernetesClientException e) {
+            logger.error(e.getMessage(), e);
+        }
     }
 
     public void printReplicaSets() {
         try {
             getReplicaSets("default").forEach(rs -> printReplicaSet(rs));
-
         } catch (KubernetesClientException e) {
             logger.error(e.getMessage(), e);
         }
+    }
+
+    public void printServices() {
+        try {
+            getServices("default").forEach(s -> printService(s));
+        } catch (KubernetesClientException e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+    public void close() {
+        client.close();
     }
 
     private void printReplicaSet(ReplicaSet replicaSet) {
@@ -45,15 +74,6 @@ public class KubernetesClientTest {
         System.out.println("Creation Time:\t" + replicaSet.getMetadata().getCreationTimestamp());
         System.out.println("Selector:\t" + replicaSet.getSpec().getSelector().getMatchLabels().values().stream().collect(Collectors.joining(", ")));
         System.out.println("");
-    }
-
-    public void printPods() {
-        try {
-            getPods("default").forEach(p -> printPod(p));
-
-        } catch (KubernetesClientException e) {
-            logger.error(e.getMessage(), e);
-        }
     }
 
     private void printPod(Pod pod) {
@@ -109,15 +129,6 @@ public class KubernetesClientTest {
         }
     }
 
-    public void printServices() {
-        try {
-            getServices("default").forEach(s -> printService(s));
-
-        } catch (KubernetesClientException e) {
-            logger.error(e.getMessage(), e);
-        }
-    }
-
     private List<Service> getServices(String nameSpace) {
         return client.services().inNamespace(nameSpace).list().getItems();
     }
@@ -130,15 +141,7 @@ public class KubernetesClientTest {
         return client.apps().replicaSets().inNamespace(nameSpace).list().getItems();
     }
 
-    public void close() {
-        client.close();
-    }
-
     public static void main(String... args) {
-        KubernetesClientTest test = new KubernetesClientTest();
-        test.printPods();
-        // test.printReplicaSets();
-        // test.printServices();
-        test.close();
+        new Thread(new KubernetesClientTest()).start();
     }
 }
