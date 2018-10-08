@@ -10,8 +10,11 @@ import java.util.stream.Collectors;
 
 public class KubernetesPod {
 
+    private KubernetesPod() {
+        throw new AssertionError();
+    }
 
-    public static void printPod(Pod pod) {
+    public static void print(Pod pod) {
         System.out.println("Pod Details");
         System.out.println("-------------------------------------");
 
@@ -27,12 +30,12 @@ public class KubernetesPod {
         System.out.println("");
     }
 
-    private static  void printContainers(List<Container> containers) {
+    private static void printContainers(List<Container> containers) {
         System.out.println("Containers:");
         containers.forEach(c -> printContainer(c));
     }
 
-    private static  void printContainer(Container container) {
+    private static void printContainer(Container container) {
         System.out.println("\t" + container.getName());
         System.out.println("\t\tImage:\t\t" + container.getImage());
         if (container.getEnv().size() > 0) {
@@ -45,7 +48,7 @@ public class KubernetesPod {
         }
     }
 
-    public static List<Pod> getPods(KubernetesClient client, String nameSpace) throws KubernetesClientException {
+    public static List<Pod> getList(KubernetesClient client, String nameSpace) throws KubernetesClientException {
         return client.pods().inNamespace(nameSpace).list().getItems();
     }
 }

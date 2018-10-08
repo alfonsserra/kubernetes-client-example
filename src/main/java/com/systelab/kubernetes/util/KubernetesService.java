@@ -9,7 +9,11 @@ import java.util.stream.Collectors;
 
 public class KubernetesService {
 
-    public static void printService(Service service) {
+    private KubernetesService() {
+        throw new AssertionError();
+    }
+
+    public static void print(Service service) {
         System.out.println("Service Details");
         System.out.println("-------------------------------------");
 
@@ -28,7 +32,7 @@ public class KubernetesService {
         System.out.println("");
     }
 
-    public static List<Service> getServices(KubernetesClient client, String nameSpace) throws KubernetesClientException {
+    public static List<Service> getList(KubernetesClient client, String nameSpace) throws KubernetesClientException {
         return client.services().inNamespace(nameSpace).list().getItems();
     }
 }

@@ -40,7 +40,8 @@ public class KubernetesClientTest implements Runnable {
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
-               this.scaleDeployment("kubernetes-client-deploy");
+                this.scaleDeployment("kubernetes-client-deploy");
+                this.printDeployments();
                 Thread.sleep(10000);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
@@ -51,7 +52,7 @@ public class KubernetesClientTest implements Runnable {
 
     public void printPods() {
         try {
-            KubernetesPod.getPods(client, namespace).forEach(p -> KubernetesPod.printPod(p));
+            KubernetesPod.getList(client, namespace).forEach(p -> KubernetesPod.print(p));
         } catch (KubernetesClientException e) {
             logger.error(e.getMessage(), e);
         }
@@ -59,7 +60,15 @@ public class KubernetesClientTest implements Runnable {
 
     public void printReplicaSets() {
         try {
-            KubernetesReplicaSet.getReplicaSets(client, namespace).forEach(rs -> KubernetesReplicaSet.printReplicaSet(rs));
+            KubernetesReplicaSet.getList(client, namespace).forEach(rs -> KubernetesReplicaSet.print(rs));
+        } catch (KubernetesClientException e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+    public void printDeployments() {
+        try {
+            KubernetesDeployment.getList(client, namespace).forEach(d -> KubernetesDeployment.print(d));
         } catch (KubernetesClientException e) {
             logger.error(e.getMessage(), e);
         }
@@ -67,7 +76,7 @@ public class KubernetesClientTest implements Runnable {
 
     public void printServices() {
         try {
-            KubernetesService.getServices(client, namespace).forEach(s -> KubernetesService.printService(s));
+            KubernetesService.getList(client, namespace).forEach(s -> KubernetesService.print(s));
 
         } catch (KubernetesClientException e) {
             logger.error(e.getMessage(), e);

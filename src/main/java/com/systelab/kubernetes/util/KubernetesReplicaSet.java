@@ -9,7 +9,11 @@ import java.util.stream.Collectors;
 
 public class KubernetesReplicaSet {
 
-    public static void printReplicaSet(ReplicaSet replicaSet) {
+    private KubernetesReplicaSet() {
+        throw new AssertionError();
+    }
+
+    public static void print(ReplicaSet replicaSet) {
 
         System.out.println("Replica Set Details");
         System.out.println("-------------------------------------");
@@ -24,7 +28,7 @@ public class KubernetesReplicaSet {
         System.out.println("");
     }
 
-    public static List<ReplicaSet> getReplicaSets(KubernetesClient client, String nameSpace) throws KubernetesClientException {
+    public static List<ReplicaSet> getList(KubernetesClient client, String nameSpace) throws KubernetesClientException {
         return client.apps().replicaSets().inNamespace(nameSpace).list().getItems();
     }
 }
