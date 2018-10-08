@@ -18,8 +18,10 @@ public class KubernetesClientTest {
 
     KubernetesClientTest() {
     //    String master = "https://192.168.99.100:8443/";
-        String master = "https://kubernetes/";
-        Config config = new ConfigBuilder().withNamespace("default").withMasterUrl(master).build();
+    //    String master = "https://kubernetes/";
+        //    Config config = new ConfigBuilder().withNamespace("default").withMasterUrl(master).build();
+
+        Config config = new ConfigBuilder().build();
         client = new DefaultKubernetesClient(config);
     }
 
@@ -134,9 +136,9 @@ public class KubernetesClientTest {
 
     public static void main(String... args) {
         KubernetesClientTest test = new KubernetesClientTest();
-        // test.printPods();
+        test.printPods();
         // test.printReplicaSets();
-        test.printServices();
+        // test.printServices();
         test.close();
     }
 }
